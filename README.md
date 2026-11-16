@@ -52,3 +52,15 @@ rpccookieperms=group # 쿠키 파일 bitcoin 그룹에서 읽기
 txindex=1            # 임의 txid 조회
 #prune=550           # 디스크 모자랄때 (txindex랑 같이못씀)
 ```
+
+7. 띄워잇
+```
+systemctl enable --now bitcoind
+```
+
+8. 로그 보기
+```
+journalctl -u bitcoind -f
+```
+
+![bitcoind 로그](./img/bitcoind-log.png)
