@@ -64,3 +64,86 @@ journalctl -u bitcoind -f
 ```
 
 ![bitcoind 로그](./img/bitcoind-log.png)
+
+## 실제 비트코인 보내보기
+
+1. 내 계정에서 bitcoin-cli 쓰기 (쿠키 그룹 읽기)
+```
+usermod -aG bitcoin hskim   # 재로그인 or newgrp bitcoin
+echo 'rpccookiefile=/home/bitcoin/.cookie' >> ~/.bitcoin/bitcoin.conf
+```
+
+2. 키 생성 ([bic](https://github.com/dilluti0n/bic))
+```
+bic genkey > key
+bic pkey < key > pkey
+```
+
+3. 주소 만들기
+```
+# BTC (P2PKH)
+bitcoin-cli getdescriptorinfo "pkh($(od -An -tx1 -v pkey | tr -d ' \n'))"
+bitcoin-cli deriveaddresses 'pkh(03cfe1...5df7)#rqldzk0q'   # 1KgVmhe4STpQimwzWNtCPNEMQhKTH2Qeqp
+
+# DOGE (P2PKH, version byte 0x1e)
+./doge-addr.py pkey                                         # DPpbJxahjsihFn8bExskw8PxHq3khkCNXE
+```
+같은 HASH160, 버전 바이트만 다름 (BTC `0x00`, DOGE `0x1e`)
+
+4. bitcoind에 watch-only로 등록
+```
+bitcoin-cli -named createwallet wallet_name=eps disable_private_keys=true blank=true
+bitcoin-cli -rpcwallet=eps importdescriptors \
+  '[{"desc":"pkh(03cfe1...5df7)#rqldzk0q","timestamp":"now"}]'
+```
+![watch-only 등록](./img/07-assign-watch-bitcoind.png)
+
+5. 업비트 -> 바이낸스 -> 내 DOGE 주소로 출금
+   (업비트 BTC 출금 수수료 0.0002 BTC ≈ 2만원이라 DOGE로 우회)
+
+![업비트 DOGE 출금](./img/00-withdraw-doge-upbit.png)
+![바이낸스 출금 실패 (입금 confirm 대기)](./img/01-withdraw-doge-binance-failed.png)
+![바이낸스 출금](./img/02-withdraw-doge-binance.png)
+![36 confirm 필요](./img/03-withdraw-doge-binance-need-36-confirm.png)
+![출금 성공](./img/04-withdraw-doge-binance-success.png)
+![출금 상세](./img/05-withdraw-doge-binance-details.png)
+![dogechain.com](./img/06-dogechain-com.png)
+
+6. 받은 UTXO (txid:vout) 확인
+![txid](./img/08-dogechain-com-txid.png)
+
+7. ChangeNOW에서 DOGE -> BTC 스왑 생성 (수신: `1KgVm...`)
+
+![ChangeNOW 입금 주소](./img/09-changenow-addr.png)
+
+8. DOGE 트랜잭션 직접 서명 ([doge-tx.py](./doge-tx.py), 시스템 libsecp256k1 ctypes)
+```
+./doge-tx.py key 6a4346...e245:0:100 DSnFnqrc2i9Y2WfvdrYE5syx3d5oGTrot7 max 0.2 > swap.hex
+```
+![서명](./img/10-signed-doge-transaction.png)
+
+9. 브로드캐스트
+```
+curl -s -X POST https://api.blockchair.com/dogecoin/push/transaction \
+     --data-urlencode "data=$(cat swap.hex)"
+```
+![전송](./img/11-send-doge-transaction.png)
+![확인](./img/11-check-doge-transaction.png)
+![ChangeNOW 대기](./img/11-wait-changenow-confirming.png)
+![DOGE confirmed](./img/12-dogechain-confirmed.png)
+
+10. bitcoind에서 수신 확인
+```
+bitcoin-cli -rpcwallet=eps gettransaction 666826ef5a92b4f3e3ad20fd6bed77c82d4dc8538e621b35077ab1d81fb147ef true true | jq '{amount, confirmations, details, vin: .decoded.vin, vout: .decoded.vout}'
+```
+0 confirm (mempool, P2P로 전파받음) -> 블록 포함되면 1 confirm
+
+![mempool](./img/13-bitcoind-mempool.png)
+![confirmed](./img/14-bitcoind-confirmed-tip.png)
+
+11. 키 잊어버릴지도 모르니깐 pass(1)에다가 저장!
+```
+pass insert -m secp/a < key
+pass show secp/a | ./bic pkey | xxd # 잘 저장되었는지 확인
+shred -u key
+```
