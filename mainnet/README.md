@@ -67,6 +67,43 @@ journalctl -u bitcoind -f
 
 ## 실제 비트코인 보내보기
 
+사용 키:
+| 항목 | 값 |
+|---|---|
+| 공개키 (compressed) | `03cfe157d8643d83d91e8506ecc182de4e49632dab108b6f116725105a377a5df7` |
+| HASH160 | `ccea80d10a571e036bcb096322b95ea0e648b7ef` |
+| BTC P2PKH | [`1KgVmhe4STpQimwzWNtCPNEMQhKTH2Qeqp`](https://mempool.space/address/1KgVmhe4STpQimwzWNtCPNEMQhKTH2Qeqp) |
+| DOGE P2PKH | [`DPpbJxahjsihFn8bExskw8PxHq3khkCNXE`](https://dogechain.com/address/DPpbJxahjsihFn8bExskw8PxHq3khkCNXE) |
+
+보낸 방식:
+```
+ [Upbit]
+    |  DOGE withdraw
+    v
+ [Binance]  DTGEgw1ZoQidVLb7CNMCQ8kypUwvtTGUHy
+    |  DOGE withdraw (after 36 confirmations)
+    |  tx 6a4346f3...0fe245 : vout 0 = 100 DOGE
+    v
+ [my key / DOGE]  DPpbJxahjsihFn8bExskw8PxHq3khkCNXE
+    |                ^
+    |                `-- pubkey 03cfe157...7a5df7  (bic genkey / pkey)
+    |
+    |  signed with doge-tx.py (libsecp256k1, legacy sighash)
+    |  broadcast via blockchair push API
+    |  tx d730db3d...b98138 : 99.8 DOGE (fee 0.2)
+    v
+ [ChangeNOW]  DSnFnqrc2i9Y2WfvdrYE5syx3d5oGTrot7
+    |  DOGE -> BTC swap
+    |  tx 666826ef...b147ef : vout 0 = 8,331 sat
+    v
+ [my key / BTC]  1KgVmhe4STpQimwzWNtCPNEMQhKTH2Qeqp
+    |                ^
+    |                `-- same pubkey, same HASH160 ccea80d1...48b7ef
+    v
+ [bitcoind]  watch-only  pkh(03cfe157...7a5df7)
+             mempool (0 conf) -> P2P relay -> in block (1 conf)
+```
+
 1. 내 계정에서 bitcoin-cli 쓰기 (쿠키 그룹 읽기)
 ```
 usermod -aG bitcoin hskim   # 재로그인 or newgrp bitcoin
