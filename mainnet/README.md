@@ -115,6 +115,7 @@ echo 'rpccookiefile=/home/bitcoin/.cookie' >> ~/.bitcoin/bitcoin.conf
 bic genkey > key
 bic pkey < key > pkey
 ```
+![생성](./img/00-local-wallet.png)
 
 3. 주소 만들기
 ```
